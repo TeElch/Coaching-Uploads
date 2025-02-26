@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coaching Uploads</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            text-align: center;
+            padding: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            margin-right: 20px;
+        }
+        .popup-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            display: none;
+        }
+        select, input, button {
+            width: 100%;
+            margin: 10px 0;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .error {
+            color: red;
+            font-size: 12px;
+            display: none;
+        }
+        .success {
+            color: green;
+            font-size: 12px;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f3f3f3;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #4caf50;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .progress-details {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #555;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4caf50;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .agent-coaching {
+            margin-bottom: 10px;
+        }
+        .agent-coaching label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .coaching-types {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .coaching-types label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Coaching Uploads</h1>
+        <div id="progress-bar" class="progress-bar">
+            <div id="progress-bar-fill" class="progress-bar-fill"></div>
+        </div>
+        <div id="progress-details" class="progress-details"></div>
+        <div id="loader" class="loader"></div>
+        
+        <form id="uploadForm">
+            <label for="tl">Select Team Leader:</label>
+            <select id="tl" onchange="updateOSAndAgents()" required>
+                <option value="" disabled selected>Select TL</option>
+            </select>
+            
+            <label for="os">OS:</label>
+            <input type="text" id="os" readonly>
+            
+            <label for="agents">Select Agents:</label>
+            <select id="agents" multiple required></select>
+            <button type="button" onclick="showAgentPopup()">Select Agents</button>
+            
+            <label for="week">Coached Week:</label>
+            <input type="text" id="week" placeholder="e.g., W1, W2" required>
+            
+            <label for="month-year">Month & Year:</label>
+            <input type="month" id="month-year" required>
+
+            <label for="files">Upload PDFs:</label>
+            <input type="file" id="files" multiple accept="application/pdf" required>
+            
+            <button type="submit">Upload</button>
+        </form>
+        <p id="error-message" class="error"></p>
+        <p id="success-message" class="success">Files uploaded successfully!</p>
+    </div>
+
+    <div class="popup-box" id="popup-box">
+        <h2>Assign Coaching Types</h2>
+        <div id="agent-list"></div>
+        <button type="button" onclick="closePopup()">Close</button>
+    </div>
+
+    <script>
+        const backendURL = "https://script.google.com/macros/s/AKfycbxuhMP7HuAnajE9z-ho_7fN90vfZTpon4YMk2LHgEz6EQqDY5S4VxOzHFkraDBjuStx/exec"; // Updated deployed URL
+
+        const data = {
+            "Dan": {
+                "Ed": ["Ice", "IPC Al", "IPC Andeng", "IPC Angel", "IPC Chachi", "IPC Clem", "IPC Gel", "IPC Haji", "IPC Jhon", "IPC Keysi", "IPC Lennie", "IPC Marielle R", "IPC Raymond V", "IPC Yawi", "Kaide", "Mikey"],
+                "Emman": ["IPC Anthony C", "IPC Krispher M", "IPC Kenitt S", "IPC Justine M", "IPC Ayrton J", "IPC Life G", "IPC Samuel R", "IPC Rayselyn G", "IPC Zach B", "IPC Anika A", "IPC Liv", "IPC Shannen S", "IPC Neilyreen DG", "IPC Kaye H", "IPC Baron C", "IPC Nomerson G", "IPC Danyelle D"],
+                "Tan": ["Ellie", "IPC Theo", "IPC Micko", "IPC Ferrari", "IPC Emy", "IPC Yuriz", "Franco", "Emsu", "Carlson", "IPC Rum", "IPC Juvia", "Ally", "Rens", "IPC Stephanie", "IPC Chloe", "IPC John", "IPC Cherry R"],
+                "Vanjo": ["IPC Roy E", "IPC Sheb", "IPC Kurei", "IPC Cris", "IPC Gege", "Giyan", "Charles", "IPC Loyd", "IPC Gilay", "Seaj", "IPC Zari", "Topher", "IPC Myls", "IPC Meranel L", "Royd", "IPC Jhon M", "IPC Mori", "IPC Izia"]
+            },
+            "Savvy": {
+                "Eunice": ["IPC Ryo", "IPC Kristella", "IPC Liam", "IPC Kiel", "IPC Royet M", "IPC LJ", "IPC Yshie", "IPC Mac", "IPC Michikoo", "IPC Whoopy", "IPC Tobi", "Jeh", "IPC Flowing", "Neuron", "IPC Mizjade", "IPC Ghelo", "Janray"],
+                "Arianne": ["IPC Felrose B", "IPC Reanielle C", "IPC Shaddie A", "IPC Amor B", "IPC Kyla N", "IPC Joeverson P", "IPC Christian S", "IPC John Ryan S", "IPC Kimberly M", "IPC Cristel E", "IPC Vincent Q", "IPC Angela C", "IPC Jonh Pol M", "IPC John Cesar S", "IPC Tian I", "IPC Lawrence E", "IPC CL", "IPC Erwin S"],
+                "Charm": ["IPC Loy S", "IPC Michael D", "Casx", "Ten", "Yeng", "OJ", "IPC Saby", "IPC Maria", "IPC Jamh", "IPC Gieca", "Nicks", "IPC Angelica G", "IPC Maxine", "IPC Popo", "IPC Dessa P", "Pam", "IPC Marck C"],
+                "Gelo": ["IPC Jupiter", "IPC Nyorn", "IPC John B", "IPC Shams", "IPC Miggy", "IPC Muns", "IPC Robin", "IPC Rap", "IPC Oma", "IPC Zel", "IPC Dj", "IPC Tsai", "IPC Farhanah O", "IPC Babs", "IPC Rogelio T", "IPC Angelu M"]
+            },
+            "JL": {
+                "Rose": ["Seng", "IPC Jessa C", "IPC Rovi P", "IPC Jess T", "IPC Gervilyn V", "IPC Clarrize A", "IPC Vherissa C", "IPC Mae R", "IPC Aubrey L", "IPC Ervin L", "IPC Shiela R", "IPC Joymee D", "IPC Janine L", "IPC Jerwin D", "IPC Kaycee", "IPC Rey S", "IPC Johnny L"],
+                "Cal": ["IPC Camsie", "IPC Zon", "IPC Dannie", "Rose", "Bantay", "IPC DC", "IPC Arim", "IPC Janssen", "IPC Merk", "IPC Jaypee", "IPC Ed", "IPC Rose", "IPC Roane", "Maedae", "IPC Apol", "Basi", "IPC Janrev B", "IPC Allison O", "IPC Crisel M"],
+                "Jasp": ["IPC Kaiden", "Alden", "IPC Aqui", "IPC RJ", "IPC Yao", "IPC Merry", "Kokoy", "Hessi", "IPC King H", "Neng", "IPC Den", "IPC Francis L", "Yoshi", "IPC Iri", "IPC Dexter G", "IPC Gerald G", "IPC Jiggar P", "IPC Ryan F"],
+                "Sherwin": ["IPC Joceth A", "IPC Jovs", "IPC Lucky", "Danna", "IPC Jiyo", "Nibb", "IPC Chuchay", "IPC Erick", "IPC Mj", "IPC Meng", "IPC Jay", "IPC Momo", "IPC Jhe", "IPC Daryl", "IPC Bryle", "IPC Jane B", "IPC Cire D"]
+            }
+        };
+
+        const coachingTypes = ["COC Coaching", "Failed QA Coaching", "Failed Week Sent Coaching", "Performance Coaching"];
+
+        let selectedAgents = [];
+
+        function populateTeamLeaders() {
+            const tlSelect = document.getElementById("tl");
+            tlSelect.innerHTML = "<option value='' disabled selected>Select TL</option>";
+
+            const tls = new Set();
+            for (let os in data) {
+                for (let tl in data[os]) {
+                    tls.add(tl);
+                }
+            }
+
+            tls.forEach(tl => {
+                let option = document.createElement("option");
+                option.value = tl;
+                option.textContent = tl;
+                tlSelect.appendChild(option);
+            });
+        }
+
+        function updateOSAndAgents() {
+            const tlSelect = document.getElementById("tl").value;
+            const osField = document.getElementById("os");
+            const agentSelect = document.getElementById("agents");
+
+            if (!tlSelect) {
+                osField.value = "";
+                agentSelect.innerHTML = "";
+                return;
+            }
+
+            for (let os in data) {
+                if (data[os][tlSelect]) {
+                    osField.value = os;
+                    agentSelect.innerHTML = "";
+                    data[os][tlSelect].forEach(agent => {
+                        let option = document.createElement("option");
+                        option.value = agent;
+                        option.textContent = agent;
+                        agentSelect.appendChild(option);
+                    });
+                    break;
+                }
+            }
+        }
+
+        function showAgentPopup() {
+            const agentSelect = document.getElementById("agents");
+            selectedAgents = Array.from(agentSelect.selectedOptions).map(option => option.value);
+
+            if (selectedAgents.length === 0) {
+                alert("Please select at least one agent.");
+                return;
+            }
+
+            const agentList = document.getElementById("agent-list");
+            agentList.innerHTML = "";
+
+            selectedAgents.forEach(agent => {
+                const agentDiv = document.createElement("div");
+                agentDiv.className = "agent-coaching";
+                agentDiv.innerHTML = `
+                    <label>${agent}</label>
+                    <div class="coaching-types">
+                        ${coachingTypes.map(type => `
+                            <label>
+                                <input type="checkbox" name="${agent}" value="${type}"> ${type}
+                            </label>
+                        `).join("")}
+                    </div>
+                `;
+                agentList.appendChild(agentDiv);
+            });
+
+            document.getElementById("popup-box").style.display = "block";
+        }
+
+        function closePopup() {
+            document.getElementById("popup-box").style.display = "none";
+        }
+
+        function disableForm() {
+            document.getElementById("uploadForm").querySelectorAll("select, input, button").forEach(element => {
+                element.disabled = true;
+            });
+        }
+
+        function enableForm() {
+            document.getElementById("uploadForm").querySelectorAll("select, input, button").forEach(element => {
+                element.disabled = false;
+            });
+        }
+
+        function showLoader() {
+            document.getElementById("loader").style.display = "block";
+        }
+
+        function hideLoader() {
+            document.getElementById("loader").style.display = "none";
+        }
+
+        function resetForm() {
+            document.getElementById("uploadForm").reset();
+            document.getElementById("os").value = "";
+            document.getElementById("agents").innerHTML = "";
+            document.getElementById("progress-bar-fill").style.width = "0%";
+            document.getElementById("progress-details").textContent = "";
+        }
+
+        function uploadFiles(e) {
+            e.preventDefault(); // Prevent form submission from reloading the page
+
+            const tl = document.getElementById("tl").value;
+            const os = document.getElementById("os").value;
+            const week = document.getElementById("week").value;
+            const monthYear = document.getElementById("month-year").value;
+            const files = document.getElementById("files").files;
+            const errorMessage = document.getElementById("error-message");
+            const successMessage = document.getElementById("success-message");
+
+            errorMessage.style.display = "none";
+            successMessage.style.display = "none";
+
+            if (!tl || !os || selectedAgents.length === 0 || !week || !monthYear || files.length === 0) {
+                errorMessage.textContent = "All fields are required!";
+                errorMessage.style.display = "block";
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("teamLeader", tl);
+            formData.append("supervisor", os);
+            formData.append("week", week);
+            formData.append("monthYear", monthYear);
+            formData.append("agents", JSON.stringify(selectedAgents));
+
+            // Collect coaching types for each agent
+            const agentCoachingTypes = {};
+            selectedAgents.forEach(agent => {
+                const checkboxes = document.querySelectorAll(`input[name="${agent}"]:checked`);
+                agentCoachingTypes[agent] = Array.from(checkboxes).map(checkbox => checkbox.value);
+            });
+            formData.append("coachingTypes", JSON.stringify(agentCoachingTypes));
+
+            for (let file of files) {
+                formData.append("files", file);
+            }
+
+            const progressBarFill = document.getElementById("progress-bar-fill");
+            const progressDetails = document.getElementById("progress-details");
+            progressBarFill.style.width = "0%";
+            progressDetails.textContent = "Starting upload...";
+
+            disableForm();
+            showLoader();
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", backendURL, true);
+
+            xhr.upload.onprogress = function (event) {
+                if (event.lengthComputable) {
+                    const percentComplete = (event.loaded / event.total) * 100;
+                    progressBarFill.style.width = percentComplete + "%";
+                    progressDetails.textContent = `Uploading: ${Math.round(percentComplete)}%`;
+                }
+            };
+
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.status === "success") {
+                        progressBarFill.style.width = "100%";
+                        progressDetails.textContent = "Upload complete!";
+                        successMessage.textContent = "Files uploaded successfully!";
+                        successMessage.style.display = "block";
+                        resetForm();
+                    } else {
+                        progressDetails.textContent = "Upload failed!";
+                        errorMessage.textContent = "Upload failed!";
+                        errorMessage.style.display = "block";
+                    }
+                } else {
+                    progressDetails.textContent = "Error uploading files!";
+                    errorMessage.textContent = "Error uploading files!";
+                    errorMessage.style.display = "block";
+                }
+                enableForm();
+                hideLoader();
+            };
+
+            xhr.onerror = function () {
+                progressDetails.textContent = "Error uploading files!";
+                errorMessage.textContent = "Error uploading files!";
+                errorMessage.style.display = "block";
+                enableForm();
+                hideLoader();
+            };
+
+            xhr.send(formData);
+        }
+
+        // Attach the form submission handler
+        document.getElementById("uploadForm").addEventListener("submit", uploadFiles);
+
+        window.onload = populateTeamLeaders;
+    </script>
+</body>
+</html>
