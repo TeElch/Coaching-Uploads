@@ -3,32 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coaching Uploads</title>
+    <title>Bulk Coaching Upload</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-            text-align: center;
-            padding: 50px;
             display: flex;
             justify-content: center;
-            align-items: flex-start;
+            align-items: center;
+            height: 100vh;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+            position: relative;
+            padding: 0 5%;
         }
         .container {
-            background: white;
+            background: rgba(211, 211, 211, 0.5);
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
-            margin-right: 20px;
-        }
-        .popup-box {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 300px;
-            display: none;
+            width: 400px;
+            text-align: center;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
         }
         select, input, button {
             width: 100%;
@@ -36,6 +32,26 @@
             padding: 8px;
             border: 1px solid #ccc;
             border-radius: 5px;
+        }
+        .popup {
+            background: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            max-height: 80vh;
+            overflow-y: auto;
+            text-align: center;
+            position: absolute;
+            right: 5%;
+            display: none;
+        }
+        .agent-box {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: #f9f9f9;
         }
         .error {
             color: red;
@@ -66,85 +82,50 @@
             font-size: 14px;
             color: #555;
         }
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #4caf50;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 10px auto;
-            display: none;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .agent-coaching {
-            margin-bottom: 10px;
-        }
-        .agent-coaching label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .coaching-types {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-        }
-        .coaching-types label {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Coaching Uploads</h1>
+    <div class="container" id="main-container">
+        <h2>Bulk Coaching Upload</h2>
         <div id="progress-bar" class="progress-bar">
             <div id="progress-bar-fill" class="progress-bar-fill"></div>
         </div>
         <div id="progress-details" class="progress-details"></div>
-        <div id="loader" class="loader"></div>
         
-        <form id="uploadForm">
-            <label for="tl">Select Team Leader:</label>
-            <select id="tl" onchange="updateOSAndAgents()" required>
-                <option value="" disabled selected>Select TL</option>
-            </select>
-            
-            <label for="os">OS:</label>
-            <input type="text" id="os" readonly>
-            
-            <label for="agents">Select Agents:</label>
-            <select id="agents" multiple required></select>
-            <button type="button" onclick="showAgentPopup()">Select Agents</button>
-            
-            <label for="week">Coached Week:</label>
-            <input type="text" id="week" placeholder="e.g., W1, W2" required>
-            
-            <label for="month-year">Month & Year:</label>
-            <input type="month" id="month-year" required>
+        <label for="tl">Select Team Leader:</label>
+        <select id="tl" onchange="updateSupervisorAndAgents()"></select>
+        
+        <label for="supervisor">Supervisor:</label>
+        <input type="text" id="supervisor" readonly>
+        
+        <label for="agents">Select Agents:</label>
+        <select id="agents" multiple></select>
+        <label><input type="checkbox" id="select-all" onclick="toggleSelectAll()"> Select All Agents</label>
+        
+        <button onclick="addAgents()">Add Selected Agents</button>
+        
+        <label for="month-year">Select Month & Year:</label>
+        <input type="month" id="month-year" required>
+        
+        <label for="week">Coached Week:</label>
+        <input type="text" id="week" placeholder="e.g., W1, W2" required>
 
-            <label for="files">Upload PDFs:</label>
-            <input type="file" id="files" multiple accept="application/pdf" required>
-            
-            <button type="submit">Upload</button>
-        </form>
+        <label for="files">Upload PDFs:</label>
+        <input type="file" id="files" multiple accept="application/pdf">
+        
+        <button onclick="uploadFiles()">Upload</button>
         <p id="error-message" class="error"></p>
         <p id="success-message" class="success">Files uploaded successfully!</p>
     </div>
 
-    <div class="popup-box" id="popup-box">
-        <h2>Assign Coaching Types</h2>
+    <div id="selected-agents" class="popup">
+        <h3>Selected Agents</h3>
         <div id="agent-list"></div>
-        <button type="button" onclick="closePopup()">Close</button>
     </div>
 
     <script>
-        const backendURL = "https://script.google.com/macros/s/AKfycbxuhMP7HuAnajE9z-ho_7fN90vfZTpon4YMk2LHgEz6EQqDY5S4VxOzHFkraDBjuStx/exec"; // Updated deployed URL
+        const backendURL = "https://script.google.com/macros/s/AKfycbz--Zjn4GsWIStmS9D7U1Fn7Y4alXHQcWO8VscC3n846wIcbVuuJttMbv-Ch9_tU8Gh/exec"; // Replace with your Google Apps Script URL
+        const coachingTypes = ["Performance Coaching", "Failed Week Sent Coaching", "Failed QA Coaching", "COC Coaching"];
 
         const data = {
             "Dan": {
@@ -167,21 +148,19 @@
             }
         };
 
-        const coachingTypes = ["COC Coaching", "Failed QA Coaching", "Failed Week Sent Coaching", "Performance Coaching"];
-
-        let selectedAgents = [];
-
         function populateTeamLeaders() {
             const tlSelect = document.getElementById("tl");
             tlSelect.innerHTML = "<option value='' disabled selected>Select TL</option>";
 
+            // Extract unique Team Leaders (TLs) from the data
             const tls = new Set();
-            for (let os in data) {
-                for (let tl in data[os]) {
+            for (let supervisor in data) {
+                for (let tl in data[supervisor]) {
                     tls.add(tl);
                 }
             }
 
+            // Populate the TL dropdown
             tls.forEach(tl => {
                 let option = document.createElement("option");
                 option.value = tl;
@@ -190,189 +169,166 @@
             });
         }
 
-        function updateOSAndAgents() {
+        function updateSupervisorAndAgents() {
             const tlSelect = document.getElementById("tl").value;
-            const osField = document.getElementById("os");
-            const agentSelect = document.getElementById("agents");
+            let supervisor = "";
+            let agents = [];
 
-            if (!tlSelect) {
-                osField.value = "";
-                agentSelect.innerHTML = "";
-                return;
-            }
-
-            for (let os in data) {
-                if (data[os][tlSelect]) {
-                    osField.value = os;
-                    agentSelect.innerHTML = "";
-                    data[os][tlSelect].forEach(agent => {
-                        let option = document.createElement("option");
-                        option.value = agent;
-                        option.textContent = agent;
-                        agentSelect.appendChild(option);
-                    });
+            // Find the supervisor and agents for the selected TL
+            for (let sup in data) {
+                if (data[sup][tlSelect]) {
+                    supervisor = sup;
+                    agents = data[sup][tlSelect];
                     break;
                 }
             }
-        }
 
-        function showAgentPopup() {
+            // Update the supervisor field
+            document.getElementById("supervisor").value = supervisor;
+
+            // Populate the agents dropdown
             const agentSelect = document.getElementById("agents");
-            selectedAgents = Array.from(agentSelect.selectedOptions).map(option => option.value);
+            agentSelect.innerHTML = "";
+            agents.forEach(agent => {
+                let option = document.createElement("option");
+                option.value = agent;
+                option.textContent = agent;
+                agentSelect.appendChild(option);
+            });
+        }
 
-            if (selectedAgents.length === 0) {
-                alert("Please select at least one agent.");
-                return;
+        function toggleSelectAll() {
+            const selectAllCheckbox = document.getElementById("select-all");
+            const agentSelect = document.getElementById("agents");
+            for (let option of agentSelect.options) {
+                option.selected = selectAllCheckbox.checked;
             }
-
-            const agentList = document.getElementById("agent-list");
-            agentList.innerHTML = "";
-
-            selectedAgents.forEach(agent => {
-                const agentDiv = document.createElement("div");
-                agentDiv.className = "agent-coaching";
-                agentDiv.innerHTML = `
-                    <label>${agent}</label>
-                    <div class="coaching-types">
-                        ${coachingTypes.map(type => `
-                            <label>
-                                <input type="checkbox" name="${agent}" value="${type}"> ${type}
-                            </label>
-                        `).join("")}
-                    </div>
-                `;
-                agentList.appendChild(agentDiv);
-            });
-
-            document.getElementById("popup-box").style.display = "block";
         }
 
-        function closePopup() {
-            document.getElementById("popup-box").style.display = "none";
+        function addAgents() {
+            const agentSelect = document.getElementById("agents");
+            const selectedAgentsContainer = document.getElementById("agent-list");
+            const popup = document.getElementById("selected-agents");
+            const mainContainer = document.getElementById("main-container");
+            selectedAgentsContainer.innerHTML = "";
+
+            let hasSelected = false;
+            for (let option of agentSelect.options) {
+                if (option.selected) {
+                    hasSelected = true;
+                    const div = document.createElement("div");
+                    div.className = "agent-box";
+                    div.innerHTML = `
+                        <strong>${option.value}</strong>
+                        <div>
+                            ${coachingTypes.map(type => `
+                                <label>
+                                    <input type='checkbox' name='coaching-${option.value}' value='${type}'> ${type}
+                                </label>
+                            `).join("<br>")}
+                        </div>
+                    `;
+                    selectedAgentsContainer.appendChild(div);
+                }
+            }
+            popup.style.display = hasSelected ? "block" : "none";
+            mainContainer.style.left = hasSelected ? "30%" : "50%";
+            mainContainer.style.transform = hasSelected ? "translateX(-70%)" : "translateX(-50%)";
         }
 
-        function disableForm() {
-            document.getElementById("uploadForm").querySelectorAll("select, input, button").forEach(element => {
-                element.disabled = true;
-            });
-        }
+        async function uploadFiles() {
+  const tl = document.getElementById("tl").value; // Team Lead
+  const supervisor = document.getElementById("supervisor").value; // OS
+  const agents = Array.from(document.getElementById("agents").selectedOptions).map(option => option.value); // Agents
+  const week = document.getElementById("week").value; // Week
+  const monthYear = document.getElementById("month-year").value; // Month & Year
+  const files = document.getElementById("files").files;
 
-        function enableForm() {
-            document.getElementById("uploadForm").querySelectorAll("select, input, button").forEach(element => {
-                element.disabled = false;
-            });
-        }
+  // Validate inputs
+  if (!tl || !supervisor || agents.length === 0 || !week || !monthYear || files.length === 0) {
+    alert("Please fill all required fields and select at least one file.");
+    return;
+  }
 
-        function showLoader() {
-            document.getElementById("loader").style.display = "block";
-        }
+  // Collect coaching types
+  const coachingTypes = [];
+  document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+    coachingTypes.push(checkbox.value);
+  });
 
-        function hideLoader() {
-            document.getElementById("loader").style.display = "none";
-        }
+  // Convert files to base64
+  const filePromises = Array.from(files).map(file => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve({
+          filename: file.name,
+          mimeType: file.type,
+          bytes: reader.result.split(",")[1], // Base64-encoded string
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  const fileData = await Promise.all(filePromises);
+
+  const formData = {
+    teamLeader: tl,
+    supervisor: supervisor,
+    agents: agents,
+    week: week,
+    monthYear: monthYear,
+    coachingTypes: coachingTypes,
+    files: fileData,
+  };
+
+  // Show progress bar and details
+  const progressBarFill = document.getElementById("progress-bar-fill");
+  const progressDetails = document.getElementById("progress-details");
+  progressBarFill.style.width = "0%";
+  progressDetails.textContent = "Starting upload...";
+
+  try {
+    const response = await fetch(backendURL, {
+      method: "POST",
+      body: JSON.stringify(formData),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    const result = await response.json();
+
+    if (result.status === "success") {
+      progressBarFill.style.width = "100%";
+      progressDetails.textContent = "Upload complete!";
+      document.getElementById("success-message").style.display = "block";
+      resetForm();
+    } else {
+      progressDetails.textContent = "Upload failed!";
+      document.getElementById("error-message").textContent = result.message || "Upload failed!";
+      document.getElementById("error-message").style.display = "block";
+    }
+  } catch (error) {
+    progressDetails.textContent = "Error uploading files!";
+    document.getElementById("error-message").textContent = "Error uploading files!";
+    document.getElementById("error-message").style.display = "block";
+    console.error("Error uploading files:", error);
+  }
+}
 
         function resetForm() {
-            document.getElementById("uploadForm").reset();
-            document.getElementById("os").value = "";
+            document.getElementById("tl").value = "";
+            document.getElementById("supervisor").value = "";
             document.getElementById("agents").innerHTML = "";
-            document.getElementById("progress-bar-fill").style.width = "0%";
-            document.getElementById("progress-details").textContent = "";
+            document.getElementById("month-year").value = "";
+            document.getElementById("week").value = "";
+            document.getElementById("files").value = "";
+            document.getElementById("agent-list").innerHTML = "";
+            document.getElementById("selected-agents").style.display = "none";
+            document.getElementById("main-container").style.left = "50%";
+            document.getElementById("main-container").style.transform = "translateX(-50%)";
         }
-
-        function uploadFiles(e) {
-            e.preventDefault(); // Prevent form submission from reloading the page
-
-            const tl = document.getElementById("tl").value;
-            const os = document.getElementById("os").value;
-            const week = document.getElementById("week").value;
-            const monthYear = document.getElementById("month-year").value;
-            const files = document.getElementById("files").files;
-            const errorMessage = document.getElementById("error-message");
-            const successMessage = document.getElementById("success-message");
-
-            errorMessage.style.display = "none";
-            successMessage.style.display = "none";
-
-            if (!tl || !os || selectedAgents.length === 0 || !week || !monthYear || files.length === 0) {
-                errorMessage.textContent = "All fields are required!";
-                errorMessage.style.display = "block";
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append("teamLeader", tl);
-            formData.append("supervisor", os);
-            formData.append("week", week);
-            formData.append("monthYear", monthYear);
-            formData.append("agents", JSON.stringify(selectedAgents));
-
-            // Collect coaching types for each agent
-            const agentCoachingTypes = {};
-            selectedAgents.forEach(agent => {
-                const checkboxes = document.querySelectorAll(`input[name="${agent}"]:checked`);
-                agentCoachingTypes[agent] = Array.from(checkboxes).map(checkbox => checkbox.value);
-            });
-            formData.append("coachingTypes", JSON.stringify(agentCoachingTypes));
-
-            for (let file of files) {
-                formData.append("files", file);
-            }
-
-            const progressBarFill = document.getElementById("progress-bar-fill");
-            const progressDetails = document.getElementById("progress-details");
-            progressBarFill.style.width = "0%";
-            progressDetails.textContent = "Starting upload...";
-
-            disableForm();
-            showLoader();
-
-            const xhr = new XMLHttpRequest();
-            xhr.open("POST", backendURL, true);
-
-            xhr.upload.onprogress = function (event) {
-                if (event.lengthComputable) {
-                    const percentComplete = (event.loaded / event.total) * 100;
-                    progressBarFill.style.width = percentComplete + "%";
-                    progressDetails.textContent = `Uploading: ${Math.round(percentComplete)}%`;
-                }
-            };
-
-            xhr.onload = function () {
-                if (xhr.status === 200) {
-                    const response = JSON.parse(xhr.responseText);
-                    if (response.status === "success") {
-                        progressBarFill.style.width = "100%";
-                        progressDetails.textContent = "Upload complete!";
-                        successMessage.textContent = "Files uploaded successfully!";
-                        successMessage.style.display = "block";
-                        resetForm();
-                    } else {
-                        progressDetails.textContent = "Upload failed!";
-                        errorMessage.textContent = "Upload failed!";
-                        errorMessage.style.display = "block";
-                    }
-                } else {
-                    progressDetails.textContent = "Error uploading files!";
-                    errorMessage.textContent = "Error uploading files!";
-                    errorMessage.style.display = "block";
-                }
-                enableForm();
-                hideLoader();
-            };
-
-            xhr.onerror = function () {
-                progressDetails.textContent = "Error uploading files!";
-                errorMessage.textContent = "Error uploading files!";
-                errorMessage.style.display = "block";
-                enableForm();
-                hideLoader();
-            };
-
-            xhr.send(formData);
-        }
-
-        // Attach the form submission handler
-        document.getElementById("uploadForm").addEventListener("submit", uploadFiles);
 
         window.onload = populateTeamLeaders;
     </script>
